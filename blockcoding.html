@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TeaaJS Block Coding</title>
+  <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+  <style>
+    body { background: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    header { background: #1a1a1a; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #007acc; }
+    .main-layout { display: flex; flex: 1; height: calc(100vh - 65px); }
+    #blocklyDiv { flex: 1; }
+    #sidePanel { width: 420px; background: #000; display: flex; flex-direction: column; border-left: 2px solid #333; }
+    #codeArea { flex: 1; color: #4af626; padding: 15px; font-family: 'Fira Code', 'Consolas', monospace; overflow-y: auto; white-space: pre-wrap; font-size: 13px; line-height: 1.6; border: none; background: #050505; outline: none; resize: none; }
+    .action-bar { padding: 15px; display: flex; gap: 10px; background: #111; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; background: #007acc; color: white; transition: 0.2s; }
+    button:hover { background: #005f99; transform: translateY(-1px); }
+    .copy-btn { background: #28a745; }
+    .copy-btn:hover { background: #218838; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h2 style="margin:0; letter-spacing: 1px;">TeaaJS Block Coding</h2>
+  <div style="font-weight:bold; color:#007acc; border: 1px solid #007acc; padding: 4px 12px; border-radius: 20px; font-size: 12px;">ULTIMATE INPUT MODE</div>
+</header>
+
+<div class="main-layout">
+  <div id="blocklyDiv"></div>
+  <div id="sidePanel">
+    <textarea id="codeArea" readonly>// Build your logic and click "Generate Code"</textarea>
+    <div class="action-bar">
+      <button onclick="generateTJS()">Generate Code</button>
+      <button class="copy-btn" onclick="copyTJS()">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 1. BLOCK DEFINITIONS (English + Custom Inputs)
+  Blockly.defineBlocksWithJsonArray([
+    // Events
+    { "type": "on_start", "message0": "on start %1 %2", "args0": [{"type": "input_dummy"}, {"type": "input_statement", "name": "DO"}], "colour": 290 },
+    { "type": "forever", "message0": "forever %1 %2", "args0": [{"type": "input_dummy"}, {"type": "input_statement", "name": "DO"}], "colour": 290 },
+    
+    // Custom Inputs (Keyboard + Console)
+    { "type": "on_input", "message0": "on key %1 pressed %2 %3", "args0": [
+        { "type": "field_dropdown", "name": "KEY", "options": [ 
+          ["W", "W"], ["A", "A"], ["S", "S"], ["D", "D"], ["Space", "SPACE"], ["Enter", "ENTER"],
+          ["Up Arrow", "UP"], ["Down Arrow", "DOWN"], ["Left Arrow", "LEFT"], ["Right Arrow", "RIGHT"],
+          ["F0", "F0"], ["F1", "F1"], ["F2", "F2"], ["X", "X"], ["O", "O"], ["Square", "SQUARE"], ["Triangle", "TRIANGLE"]
+        ] },
+        {"type": "input_dummy"}, {"type": "input_statement", "name": "DO"}
+      ], "colour": 200 },
+      
+    { "type": "is_pressed", "message0": "key %1 is pressed?", "args0": [
+        { "type": "field_dropdown", "name": "KEY", "options": [ 
+          ["W", "W"], ["A", "A"], ["S", "S"], ["D", "D"], ["F0", "F0"], ["X", "X"], ["O", "O"] 
+        ] }
+      ], "output": "Boolean", "colour": 200 },
+
+    // TeaaJS Native Commands
+    { "type": "tjs_led", "message0": "set LED -> Index: %1 R: %2 G: %3 B: %4", "args0": [
+        {"type": "input_value", "name": "I"}, {"type": "input_value", "name": "R"},
+        {"type": "input_value", "name": "G"}, {"type": "input_value", "name": "B"}
+      ], "previousStatement": null, "nextStatement": null, "colour": 160 },
+    { "type": "tjs_wait", "message0": "wait %1 ms", "args0": [{"type": "input_value", "name": "MS"}], "previousStatement": null, "nextStatement": null, "colour": 120 },
+    { "type": "tjs_clear", "message0": "clear screen 🧹", "previousStatement": null, "nextStatement": null, "colour": 0 },
+    { "type": "tjs_print", "message0": "print to console: %1", "args0": [{"type": "input_value", "name": "VAL"}], "previousStatement": null, "nextStatement": null, "colour": 180 }
+  ]);
+
+  // 2. CODE GENERATORS (TeaaJS Native Functions)
+  const js = Blockly.JavaScript;
+  js.forBlock['on_start'] = b => `function onStart() {\n${js.statementToCode(b, 'DO')}}\n`;
+  js.forBlock['forever'] = b => `function forever() {\n${js.statementToCode(b, 'DO')}}\n`;
+  js.forBlock['on_input'] = b => `function onInput(key) {\n  if(key === '${b.getFieldValue('KEY')}') {\n${js.statementToCode(b, 'DO')}  }\n}\n`;
+  js.forBlock['is_pressed'] = b => [`isPressed('${b.getFieldValue('KEY')}')`, js.ORDER_ATOMIC];
+  js.forBlock['tjs_led'] = b => `setLED(${js.valueToCode(b,'I',js.ORDER_ATOMIC)||0}, ${js.valueToCode(b,'R',js.ORDER_ATOMIC)||0}, ${js.valueToCode(b,'G',js.ORDER_ATOMIC)||0}, ${js.valueToCode(b,'B',js.ORDER_ATOMIC)||0});\n`;
+  js.forBlock['tjs_wait'] = b => `wait(${js.valueToCode(b,'MS',js.ORDER_ATOMIC)||100});\n`;
+  js.forBlock['tjs_clear'] = () => "clear();\n";
+  js.forBlock['tjs_print'] = b => `print(${js.valueToCode(b,'VAL',js.ORDER_ATOMIC)});\n`;
+
+  // 3. TOOLBOX (English)
+  const toolbox = {
+    "kind": "categoryToolbox",
+    "contents": [
+      { "kind": "category", "name": "Input", "colour": "200", "contents": [
+          { "kind": "block", "type": "on_input" },
+          { "kind": "block", "type": "is_pressed" }
+      ]},
+      { "kind": "category", "name": "Loops", "colour": "290", "contents": [
+          { "kind": "block", "type": "on_start" }, { "kind": "block", "type": "forever" },
+          { "kind": "block", "type": "tjs_wait" }, { "kind": "block", "type": "tjs_clear" },
+          { "kind": "block", "type": "controls_repeat_ext" }
+      ]},
+      { "kind": "category", "name": "Screen", "colour": "160", "contents": [{ "kind": "block", "type": "tjs_led" }] },
+      { "kind": "category", "name": "Logic", "colour": "210", "contents": [
+          { "kind": "block", "type": "controls_if" }, { "kind": "block", "type": "logic_compare" },
+          { "kind": "block", "type": "logic_operation" }, { "kind": "block", "type": "logic_boolean" }
+      ]},
+      { "kind": "category", "name": "Math", "colour": "230", "contents": [
+          { "kind": "block", "type": "math_number" }, { "kind": "block", "type": "math_arithmetic" },
+          { "kind": "block", "type": "math_random_int" }
+      ]},
+      { "kind": "category", "name": "Text", "colour": "180", "contents": [
+          { "kind": "block", "type": "text" }, { "kind": "block", "type": "tjs_print" }
+      ]},
+      { "kind": "category", "name": "Arrays", "colour": "260", "contents": [
+          { "kind": "block", "type": "lists_create_with" }, { "kind": "block", "type": "lists_getIndex" }, { "kind": "block", "type": "lists_setIndex" }
+      ]},
+      { "kind": "sep" },
+      { "kind": "category", "name": "Variables", "custom": "VARIABLE", "colour": "330" },
+      { "kind": "category", "name": "Functions", "custom": "PROCEDURE", "colour": "290" }
+    ]
+  };
+
+  const ws = Blockly.inject('blocklyDiv', { toolbox: toolbox, theme: Blockly.Themes.Dark });
+
+  function generateTJS() { document.getElementById('codeArea').value = js.workspaceToCode(ws); }
+  function copyTJS() { 
+    const area = document.getElementById('codeArea');
+    area.select();
+    document.execCommand('copy');
+    alert("TeaaJS Code Copied!");
+  }
+</script>
+</body>
+</html>
